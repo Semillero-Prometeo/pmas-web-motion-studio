@@ -1,0 +1,30 @@
+{
+    "0": {
+        "0": {
+            "nombre": "flexion",
+            "nombre_corto": "bra_der_flexion",
+            "ubicacion": "Brazo derecho",
+            "modelo": "Otro",
+            "voltaje": "Definir",
+            "min": 0,
+            "max": 996,
+            "centro": 498,
+            "mov_min": "antihorario",
+            "mov_max": "baja"
+        }
+    },
+    "1": {
+        "9": {
+            "nombre": "flexion",
+            "nombre_corto": "bra_izq_flexion",
+            "ubicacion": "Brazo izquierdo",
+            "modelo": "DS5160",
+            "voltaje": "4.8 – 8.4 V",
+            "min": 300,
+            "max": 755,
+            "centro": 527,
+            "mov_min": "sube",
+            "mov_max": "baja"
+        }
+    }
+}
