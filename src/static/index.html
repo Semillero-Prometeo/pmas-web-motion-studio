@@ -3,56 +3,81 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Estudio de movimiento</title>
-    <link rel="stylesheet" href="/static/editor.css" />
+    <title>R-ONE Motion Studio</title>
+    <link rel="stylesheet" href="/static/editor.css?v=timeline4" />
   </head>
   <body>
-    <header>
-      <h1>Estudio de movimiento</h1>
-      <p id="mode">Suelto: no hay sesión</p>
-    </header>
-
-    <section class="fields">
-      <label>
-        Nombre
-        <input id="name" maxlength="80" required />
-      </label>
-      <label>
-        Descripción
-        <textarea id="description" maxlength="280" rows="3"></textarea>
-      </label>
-      <label>
-        Arduino
-        <input id="arduino_id" type="number" min="0" value="0" />
-      </label>
-    </section>
-
-    <section>
-      <div class="toolbar">
-        <p>Bloques</p>
-        <button type="button" id="add-row">Agregar bloque</button>
+    <!--
+      THESIS: Creating a sequence is placing colored bars on time, not filling a spreadsheet; this refuses the form-table editor.
+      OWN-WORLD: Host industrial night (#000f1d, cyan #38bdf8, emerald #10b981); dense toolbar; timeline is the canvas.
+      STORY: Name the gesture, drop servos on the ruler, drag when they fire, play to watch the playhead.
+      FIRST VIEWPORT: One compact chrome row, then the timeline owns the rest of the iframe.
+      FORM: Operate extension of pmas-web-main + original R-ONE timeline grammar.
+      FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+    -->
+    <div class="app">
+      <header class="chrome">
+        <div class="identity">
+          <strong>Motion Studio</strong>
+          <span id="mode" class="mode">Suelto</span>
+        </div>
+        <label class="field">
+          <span>Nombre</span>
+          <input id="name" maxlength="80" placeholder="saludo" />
+        </label>
+        <label class="field field-wide">
+          <span>Descripción</span>
+          <input id="description" maxlength="280" placeholder="Para el prompt del turno" />
+        </label>
+        <label class="field field-narrow">
+          <span>Arduino</span>
+          <input id="arduino_id" type="number" min="0" value="0" />
+        </label>
+      </header>
+      <div class="actions">
+        <button type="button" id="add" class="btn">Agregar</button>
+        <button type="button" id="play" class="btn btn-play">Play</button>
+        <button type="button" id="stop" class="btn btn-stop">Stop</button>
+        <button type="button" id="save" class="btn btn-save">Guardar</button>
+        <button type="button" id="load" class="btn">Cargar</button>
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th>pca</th>
-            <th>servo</th>
-            <th>inicio</th>
-            <th>dur</th>
-            <th>pos</th>
-            <th>vel</th>
-            <th>nombre</th>
-          </tr>
-        </thead>
-        <tbody id="blocks"></tbody>
-      </table>
-    </section>
 
-    <section class="actions">
-      <button type="button" id="save">Guardar</button>
-      <button type="button" id="play">Previsualizar</button>
-    </section>
-    <p id="status">Listo</p>
-    <script src="/static/editor.js"></script>
+      <p id="status" class="status" role="status">Listo</p>
+
+      <div class="workspace">
+        <aside class="lanes" id="lanes" aria-label="Servos"></aside>
+        <div class="stage" id="stage">
+          <div class="timeline-scroll">
+            <div class="ruler" id="ruler"></div>
+            <div class="tracks" id="tracks"></div>
+            <div class="playhead" id="playhead" hidden></div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="inspector" id="inspector" hidden>
+        <p>Editar bloque</p>
+        <label>Nombre <input id="edit-nombre" maxlength="80" /></label>
+        <label>PCA <input id="edit-pca" type="number" min="0" max="10" /></label>
+        <label>Servo <input id="edit-servo" type="number" min="0" max="15" /></label>
+        <label>Posición <input id="edit-pos" type="number" min="0" max="1000" /></label>
+        <label>Velocidad <input id="edit-vel" type="number" min="1" max="10" /></label>
+        <label>Duración (s) <input id="edit-dur" type="number" min="0.1" step="0.1" /></label>
+        <button type="button" id="delete-block" class="btn btn-stop">Eliminar</button>
+      </aside>
+    </div>
+
+    <dialog id="load-dialog">
+      <form method="dialog" class="load-sheet">
+        <p>Secuencias en robótica</p>
+        <select id="load-list" size="8"></select>
+        <div class="load-actions">
+          <button value="cancel" class="btn">Cerrar</button>
+          <button id="load-confirm" value="default" class="btn btn-save">Abrir</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="/static/editor.js?v=timeline"></script>
   </body>
 </html>

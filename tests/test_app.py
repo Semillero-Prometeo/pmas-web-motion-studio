@@ -1,5 +1,4 @@
 from fastapi.testclient import TestClient
-
 from src.app import app
 
 
@@ -9,3 +8,5 @@ def test_index_serves_editor():
     text = response.text.lower()
     assert "description" in text or "descripcion" in text or "descripción" in text
     assert "nombre" in text
+    assert 'id="tracks"' in response.text
+    assert "agregar" in text
