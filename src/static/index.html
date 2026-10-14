@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>R-ONE Motion Studio</title>
-    <link rel="stylesheet" href="/static/editor.css?v=library" />
+    <link rel="stylesheet" href="/static/editor.css?v=neutro" />
   </head>
   <body>
     <!--
@@ -33,11 +33,26 @@
           <span>Arduino</span>
           <input id="arduino_id" type="number" min="0" value="0" />
         </label>
+        <label class="field">
+          <span>Categoría</span>
+          <select id="category">
+            <option value="">Elegir</option>
+            <option value="cara">Cara</option>
+            <option value="cuello">Cuello</option>
+            <option value="brazo_derecho">Brazo derecho</option>
+            <option value="brazo_izquierdo">Brazo izquierdo</option>
+            <option value="torso">Torso</option>
+            <option value="cadera">Cadera</option>
+          </select>
+        </label>
       </header>
       <div class="actions">
         <button type="button" id="add" class="btn">Agregar</button>
         <button type="button" id="play" class="btn btn-play">Play</button>
         <button type="button" id="stop" class="btn btn-stop">Stop</button>
+        <button type="button" id="track-gesto" class="btn active">Gesto</button>
+        <button type="button" id="track-neutro" class="btn">Neutro</button>
+        <button type="button" id="generate-neutro" class="btn">Generar neutro</button>
         <button type="button" id="save" class="btn btn-save">Guardar</button>
           <button type="button" id="load" class="btn">Actualizar</button>
       </div>
@@ -74,6 +89,6 @@
       </aside>
     </div>
 
-    <script src="/static/editor.js?v=auth-role"></script>
+    <script src="/static/editor.js?v=neutro"></script>
   </body>
 </html>

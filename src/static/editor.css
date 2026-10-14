@@ -115,6 +115,14 @@ select:focus {
   border-color: var(--cyan);
 }
 
+.btn.active {
+  outline: 1px solid var(--cyan);
+}
+
+.track-neutro .block {
+  filter: hue-rotate(40deg);
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;

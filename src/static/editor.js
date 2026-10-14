@@ -11,7 +11,10 @@ let gatewayUrl = null;
 let activeRole = null;
 let lastAuthKey = null;
 let authRequestAt = 0;
-let blocks = [];
+let gestureBlocks = [];
+let neutroBlocks = [];
+let activeTrack = "normal";
+let blocks = gestureBlocks;
 let selectedId = null;
 let nextId = 1;
 let playing = false;
@@ -25,6 +28,7 @@ const els = {
   name: document.getElementById("name"),
   description: document.getElementById("description"),
   arduino: document.getElementById("arduino_id"),
+  category: document.getElementById("category"),
   mode: document.getElementById("mode"),
   status: document.getElementById("status"),
   lanes: document.getElementById("lanes"),
@@ -244,20 +248,87 @@ function deleteSelected() {
   render();
 }
 
+function tuplesOf(list) {
+  return list.map((block) => [
+    Number(block.pca),
+    Number(block.servo),
+    roundTime(block.inicio),
+    Number(block.dur),
+    Number(block.pos),
+    Number(block.vel),
+    String(block.nombre),
+  ]);
+}
+
+function flushActive() {
+  if (activeTrack === "neutro") {
+    neutroBlocks = blocks;
+  } else {
+    gestureBlocks = blocks;
+  }
+}
+
+function setActiveTrack(next) {
+  flushActive();
+  activeTrack = next;
+  blocks = next === "neutro" ? neutroBlocks : gestureBlocks;
+  document.getElementById("track-gesto").classList.toggle("active", next === "normal");
+  document.getElementById("track-neutro").classList.toggle("active", next === "neutro");
+  document.documentElement.classList.toggle("track-neutro", next === "neutro");
+  selectedId = null;
+  render();
+}
+
+function generateNeutroFrom(tuples) {
+  const seeds = new Map();
+  const order = [];
+  for (const item of tuples) {
+    const key = `${item[0]}:${item[1]}`;
+    if (!seeds.has(key)) {
+      seeds.set(key, item);
+      order.push(key);
+      continue;
+    }
+    if (Number(item[2]) < Number(seeds.get(key)[2])) seeds.set(key, item);
+  }
+  return order.map((key) => {
+    const item = seeds.get(key);
+    return [item[0], item[1], 0, 2, item[4], item[5], item[6]];
+  });
+}
+
+function generateNeutro() {
+  flushActive();
+  if (!gestureBlocks.length) {
+    setStatus("Agrega bloques al gesto", true);
+    return;
+  }
+  if (neutroBlocks.length && !confirm("¿Reemplazar la pista neutra?")) return;
+  neutroBlocks = generateNeutroFrom(tuplesOf(gestureBlocks)).map((item) =>
+    createBlock({
+      pca: item[0],
+      servo: item[1],
+      inicio: item[2],
+      dur: item[3],
+      pos: item[4],
+      vel: item[5],
+      nombre: item[6],
+    }),
+  );
+  if (activeTrack === "neutro") blocks = neutroBlocks;
+  render();
+  setStatus("Pista neutra generada");
+}
+
 function buildOrigin() {
+  flushActive();
   return {
     name: els.name.value.trim(),
     description: els.description.value.replace(/\n/g, " ").slice(0, 280),
+    category: els.category.value,
     arduino_id: Number(els.arduino.value || 0),
-    blocks: blocks.map((block) => [
-      Number(block.pca),
-      Number(block.servo),
-      roundTime(block.inicio),
-      Number(block.dur),
-      Number(block.pos),
-      Number(block.vel),
-      String(block.nombre),
-    ]),
+    blocks: tuplesOf(gestureBlocks),
+    blocks_neutro: tuplesOf(neutroBlocks),
   };
 }
 
@@ -434,8 +505,9 @@ async function saveCoupled(overwrite) {
 }
 
 async function playCurrent() {
-  const sequence = buildOrigin();
-  if (!sequence.blocks.length) {
+  flushActive();
+  const active = activeTrack === "neutro" ? neutroBlocks : gestureBlocks;
+  if (!active.length) {
     setStatus("Agrega al menos un bloque", true);
     return;
   }
@@ -448,7 +520,8 @@ async function playCurrent() {
     setStatus("Línea de tiempo en curso (suelto)");
     return;
   }
-  const playBlocks = sequence.blocks.map((item) => ({
+  const sequence = buildOrigin();
+  const playBlocks = tuplesOf(active).map((item) => ({
     arduino_id: sequence.arduino_id,
     pca: item[0],
     servo: item[1],
@@ -461,11 +534,20 @@ async function playCurrent() {
   try {
     const response = await authorizedFetch("/sequence/play", {
       method: "POST",
-      body: JSON.stringify({ blocks: playBlocks }),
+      body: JSON.stringify({
+        mode: activeTrack === "neutro" ? "neutro" : "normal",
+        source: "estudio",
+        blocks: playBlocks,
+      }),
     });
-    if (!response.ok) throw new Error("No se pudo previsualizar");
+    if (!response.ok) {
+      stopPlayhead();
+      setStatus((await readError(response)) || "No se pudo previsualizar", true);
+      return;
+    }
     setStatus("Previsualización en curso");
   } catch (error) {
+    stopPlayhead();
     setStatus(error.message || "No se pudo previsualizar", true);
   }
 }
@@ -514,14 +596,10 @@ function replaceBlocks(nextBlocks) {
   render();
 }
 
-function parseLoadedSequence(payload) {
-  const sequence = payload.sequence || payload;
-  els.name.value = sequence.name || "";
-  els.description.value = sequence.description || "";
-  const rawBlocks = Array.isArray(sequence.blocks) ? sequence.blocks : [];
-  const mapped = rawBlocks.map((item) => {
+function mapRawBlocks(rawBlocks) {
+  return rawBlocks.map((item) => {
     if (Array.isArray(item)) {
-      return {
+      return createBlock({
         pca: item[0],
         servo: item[1],
         inicio: item[2],
@@ -529,9 +607,9 @@ function parseLoadedSequence(payload) {
         pos: item[4],
         vel: item[5],
         nombre: item[6],
-      };
+      });
     }
-    return {
+    return createBlock({
       pca: item.pca,
       servo: item.servo,
       inicio: item.inicio,
@@ -539,14 +617,31 @@ function parseLoadedSequence(payload) {
       pos: item.pos,
       vel: item.vel,
       nombre: item.nombre,
-    };
+    });
   });
+}
+
+function parseLoadedSequence(payload) {
+  const sequence = payload.sequence || payload;
+  els.name.value = sequence.name || "";
+  els.description.value = sequence.description || "";
+  els.category.value = sequence.category || "";
+  const rawBlocks = Array.isArray(sequence.blocks) ? sequence.blocks : [];
+  const rawNeutro = Array.isArray(sequence.blocks_neutro) ? sequence.blocks_neutro : [];
   if (sequence.arduino_id != null) {
     els.arduino.value = sequence.arduino_id;
   } else if (rawBlocks[0] && !Array.isArray(rawBlocks[0]) && rawBlocks[0].arduino_id != null) {
     els.arduino.value = rawBlocks[0].arduino_id;
   }
-  replaceBlocks(mapped);
+  gestureBlocks = mapRawBlocks(rawBlocks);
+  neutroBlocks = mapRawBlocks(rawNeutro);
+  activeTrack = "normal";
+  blocks = gestureBlocks;
+  document.getElementById("track-gesto").classList.add("active");
+  document.getElementById("track-neutro").classList.remove("active");
+  document.documentElement.classList.remove("track-neutro");
+  selectedId = null;
+  render();
 }
 
 els.tracks.addEventListener("pointerdown", (event) => {
@@ -662,10 +757,14 @@ document.getElementById("add").onclick = () => {
   render();
 };
 
+document.getElementById("track-gesto").onclick = () => setActiveTrack("normal");
+document.getElementById("track-neutro").onclick = () => setActiveTrack("neutro");
+document.getElementById("generate-neutro").onclick = () => generateNeutro();
+
 document.getElementById("save").onclick = async () => {
   const sequence = buildOrigin();
-  if (!sequence.name || !sequence.blocks.length) {
-    setStatus("Define nombre y bloques", true);
+  if (!sequence.name || !sequence.category || !sequence.blocks.length || !sequence.blocks_neutro.length) {
+    setStatus("Categoría, gesto y neutro son obligatorios", true);
     return;
   }
   try {
