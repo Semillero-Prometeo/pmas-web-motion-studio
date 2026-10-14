@@ -8,6 +8,9 @@ const COLORS_OVERLAP = ["#3d5bb5", "#2d8a52", "#c47a28", "#7a3fb0", "#c43a3a"];
 
 let token = null;
 let gatewayUrl = null;
+let activeRole = null;
+let lastAuthKey = null;
+let authRequestAt = 0;
 let blocks = [];
 let selectedId = null;
 let nextId = 1;
@@ -52,15 +55,33 @@ window.addEventListener("message", (event) => {
   if (data.type !== POST_AUTH) return;
   if (typeof data.token !== "string" || !data.token) return;
   if (typeof data.gatewayUrl !== "string" || !data.gatewayUrl) return;
+  const role = typeof data.activeRole === "string" ? data.activeRole.trim() : "";
+  const nextKey = `${data.token}|${role}|${data.gatewayUrl}`;
+  if (nextKey === lastAuthKey) return;
+  lastAuthKey = nextKey;
   token = data.token;
   gatewayUrl = data.gatewayUrl.replace(/\/$/, "");
+  activeRole = role || null;
+  if (!activeRole) {
+    els.mode.textContent = "Suelto";
+    setStatus("Falta el rol activo; se usa el disco local", true);
+    refreshLibrary();
+    return;
+  }
   els.mode.textContent = "Acoplado";
   setStatus("Acoplado a robótica");
   refreshLibrary();
 });
 
 function isCoupled() {
-  return Boolean(token && gatewayUrl);
+  return Boolean(token && gatewayUrl && activeRole);
+}
+
+function requestAuth() {
+  const now = Date.now();
+  if (now - authRequestAt < 2000) return;
+  authRequestAt = now;
+  window.parent.postMessage({ type: POST_AUTH_REQUEST }, "*");
 }
 
 function setStatus(message, isError = false) {
@@ -241,18 +262,21 @@ function buildOrigin() {
 }
 
 async function authorizedFetch(path, options = {}) {
+  const headers = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+    ...(options.headers || {}),
+  };
+  if (activeRole) headers["X-Active-Role"] = activeRole;
   const response = await fetch(`${gatewayUrl}${path}`, {
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-      ...(options.headers || {}),
-    },
+    headers,
   });
-  if (response.status === 401 || response.status === 403) {
+  if (response.status === 401) {
     token = null;
+    activeRole = null;
     els.mode.textContent = "Suelto: no hay sesión";
-    window.parent.postMessage({ type: POST_AUTH_REQUEST }, "*");
+    requestAuth();
     throw new Error("Sesión vencida");
   }
   return response;
@@ -263,6 +287,7 @@ async function readError(response) {
   try {
     const json = JSON.parse(text);
     if (typeof json.detail === "string") return json.detail;
+    if (typeof json.message === "string") return json.message;
   } catch {
     /* plain text from gateway */
   }
@@ -315,18 +340,26 @@ function renderLibrary() {
 }
 
 async function refreshLibrary() {
-  try {
-    if (isCoupled()) {
+  if (isCoupled()) {
+    try {
       const response = await authorizedFetch("/sequence/files");
-      if (!response.ok) throw new Error(await readError(response) || "No se pudo listar");
-      const payload = await response.json();
-      libraryItems = payload.data || [];
-    } else {
-      const response = await fetch("/local/sequences");
-      if (!response.ok) throw new Error("No se pudo listar el disco");
-      const payload = await response.json();
-      libraryItems = payload.data || [];
+      if (!response.ok) throw new Error((await readError(response)) || "No se pudo listar");
+      libraryItems = (await response.json()).data || [];
+      renderLibrary();
+      return;
+    } catch (error) {
+      setStatus(error.message || "No se pudo listar", true);
+      if (isCoupled()) {
+        libraryItems = [];
+        renderLibrary();
+        return;
+      }
     }
+  }
+  try {
+    const response = await fetch("/local/sequences");
+    if (!response.ok) throw new Error("No se pudo listar el disco");
+    libraryItems = (await response.json()).data || [];
     renderLibrary();
   } catch (error) {
     libraryItems = [];
