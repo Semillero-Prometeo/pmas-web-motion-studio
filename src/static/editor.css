@@ -1,0 +1,66 @@
+body {
+  font-family: sans-serif;
+  margin: 1.5rem;
+  color: #111;
+  background: #f4f6fb;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+#mode {
+  font-size: 0.85rem;
+  color: #445;
+}
+
+.fields,
+.actions {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+input,
+textarea,
+button {
+  font: inherit;
+  padding: 0.4rem 0.6rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+th,
+td {
+  border: 1px solid #ccd;
+  padding: 0.3rem;
+}
+
+td input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#status {
+  font-size: 0.85rem;
+  color: #334;
+}

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Estudio de movimiento</title>
+    <link rel="stylesheet" href="/static/editor.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Estudio de movimiento</h1>
+      <p id="mode">Suelto: no hay sesión</p>
+    </header>
+
+    <section class="fields">
+      <label>
+        Nombre
+        <input id="name" maxlength="80" required />
+      </label>
+      <label>
+        Descripción
+        <textarea id="description" maxlength="280" rows="3"></textarea>
+      </label>
+      <label>
+        Arduino
+        <input id="arduino_id" type="number" min="0" value="0" />
+      </label>
+    </section>
+
+    <section>
+      <div class="toolbar">
+        <p>Bloques</p>
+        <button type="button" id="add-row">Agregar bloque</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>pca</th>
+            <th>servo</th>
+            <th>inicio</th>
+            <th>dur</th>
+            <th>pos</th>
+            <th>vel</th>
+            <th>nombre</th>
+          </tr>
+        </thead>
+        <tbody id="blocks"></tbody>
+      </table>
+    </section>
+
+    <section class="actions">
+      <button type="button" id="save">Guardar</button>
+      <button type="button" id="play">Previsualizar</button>
+    </section>
+    <p id="status">Listo</p>
+    <script src="/static/editor.js"></script>
+  </body>
+</html>
