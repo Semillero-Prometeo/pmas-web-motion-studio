@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>R-ONE Motion Studio</title>
-    <link rel="stylesheet" href="/static/editor.css?v=timeline4" />
+    <link rel="stylesheet" href="/static/editor.css?v=library" />
   </head>
   <body>
     <!--
@@ -39,7 +39,7 @@
         <button type="button" id="play" class="btn btn-play">Play</button>
         <button type="button" id="stop" class="btn btn-stop">Stop</button>
         <button type="button" id="save" class="btn btn-save">Guardar</button>
-        <button type="button" id="load" class="btn">Cargar</button>
+          <button type="button" id="load" class="btn">Actualizar</button>
       </div>
 
       <p id="status" class="status" role="status">Listo</p>
@@ -53,6 +53,13 @@
             <div class="playhead" id="playhead" hidden></div>
           </div>
         </div>
+        <aside class="library" id="library" aria-label="Secuencias guardadas">
+          <header>
+            <p>Secuencias</p>
+            <span id="library-source">Disco</span>
+          </header>
+          <ul id="library-list"></ul>
+        </aside>
       </div>
 
       <aside class="inspector" id="inspector" hidden>
@@ -67,17 +74,6 @@
       </aside>
     </div>
 
-    <dialog id="load-dialog">
-      <form method="dialog" class="load-sheet">
-        <p>Secuencias en robótica</p>
-        <select id="load-list" size="8"></select>
-        <div class="load-actions">
-          <button value="cancel" class="btn">Cerrar</button>
-          <button id="load-confirm" value="default" class="btn btn-save">Abrir</button>
-        </div>
-      </form>
-    </dialog>
-
-    <script src="/static/editor.js?v=timeline"></script>
+    <script src="/static/editor.js?v=library"></script>
   </body>
 </html>

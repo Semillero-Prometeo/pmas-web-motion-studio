@@ -13,6 +13,7 @@
   --row-h: 44px;
   --block-h: 30px;
   --lane-w: 118px;
+  --lib-w: 16.5rem;
   --ruler-h: 28px;
 }
 
@@ -170,7 +171,7 @@ select:focus {
 
 .workspace {
   display: grid;
-  grid-template-columns: var(--lane-w) minmax(0, 1fr);
+  grid-template-columns: var(--lane-w) minmax(0, 1fr) var(--lib-w);
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -356,32 +357,102 @@ select:focus {
   width: 9rem;
 }
 
-dialog {
-  background: var(--panel);
-  color: var(--text);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 0.9rem;
-  width: min(28rem, 92vw);
-}
-
-dialog::backdrop {
-  background: rgba(0, 8, 16, 0.72);
-}
-
-.load-sheet p {
-  margin: 0 0 0.5rem;
-}
-
-.load-sheet select {
-  width: 100%;
-}
-
-.load-actions {
+.library {
   display: flex;
-  justify-content: flex-end;
-  gap: 0.4rem;
-  margin-top: 0.7rem;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+}
+
+.library header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.45rem 0.7rem;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.library header p {
+  margin: 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.library header span {
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cyan);
+}
+
+.library ul {
+  list-style: none;
+  margin: 0;
+  padding: 0.3rem 0;
+  overflow: auto;
+  min-height: 0;
+}
+
+.library .empty {
+  padding: 0.8rem 0.7rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.lib-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.25rem;
+  align-items: center;
+  padding: 0.2rem 0.45rem;
+}
+
+.lib-open {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.12rem;
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0.35rem 0.45rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lib-open:hover,
+.lib-open.active {
+  border-color: var(--line);
+  background: #041018;
+}
+
+.lib-open strong {
+  font-size: 0.78rem;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.lib-open span {
+  font-size: 0.62rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.lib-play {
+  font-size: 0.68rem;
+  padding: 0.28rem 0.45rem;
 }
 
 html.embedded .identity strong {

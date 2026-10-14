@@ -15,6 +15,8 @@ let playing = false;
 let playStartedAt = 0;
 let playFrame = 0;
 let drag = null;
+let libraryItems = [];
+let selectedLibraryName = null;
 
 const els = {
   name: document.getElementById("name"),
@@ -28,8 +30,8 @@ const els = {
   stage: document.getElementById("stage"),
   playhead: document.getElementById("playhead"),
   inspector: document.getElementById("inspector"),
-  loadDialog: document.getElementById("load-dialog"),
-  loadList: document.getElementById("load-list"),
+  librarySource: document.getElementById("library-source"),
+  libraryList: document.getElementById("library-list"),
 };
 
 if (window.self !== window.top || new URLSearchParams(location.search).has("embed")) {
@@ -54,7 +56,12 @@ window.addEventListener("message", (event) => {
   gatewayUrl = data.gatewayUrl.replace(/\/$/, "");
   els.mode.textContent = "Acoplado";
   setStatus("Acoplado a robótica");
+  refreshLibrary();
 });
+
+function isCoupled() {
+  return Boolean(token && gatewayUrl);
+}
 
 function setStatus(message, isError = false) {
   els.status.textContent = message;
@@ -251,6 +258,129 @@ async function authorizedFetch(path, options = {}) {
   return response;
 }
 
+async function readError(response) {
+  const text = await response.text();
+  try {
+    const json = JSON.parse(text);
+    if (typeof json.detail === "string") return json.detail;
+  } catch {
+    /* plain text from gateway */
+  }
+  return text;
+}
+
+function localSequenceUrl(name) {
+  return `/local/sequences/${name.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+function renderLibrary() {
+  const coupled = isCoupled();
+  els.librarySource.textContent = coupled ? "Robótica" : "Disco";
+  els.libraryList.innerHTML = "";
+  if (!libraryItems.length) {
+    const empty = document.createElement("li");
+    empty.className = "empty";
+    empty.textContent = coupled ? "No hay secuencias en robótica." : "No hay secuencias en disco.";
+    els.libraryList.appendChild(empty);
+    return;
+  }
+  libraryItems.forEach((item) => {
+    const row = document.createElement("li");
+    row.className = "lib-item";
+    const open = document.createElement("button");
+    open.type = "button";
+    open.className = "lib-open" + (item.name === selectedLibraryName ? " active" : "");
+    open.dataset.name = item.name;
+    const title = document.createElement("strong");
+    title.textContent = item.name;
+    const meta = document.createElement("span");
+    const bits = [];
+    if (item.id != null) bits.push(`#${item.id}`);
+    if (item.description) bits.push(item.description);
+    meta.textContent = bits.join(" · ") || "Sin descripción";
+    open.append(title, meta);
+    open.onclick = () => openSequence(item.name);
+    const play = document.createElement("button");
+    play.type = "button";
+    play.className = "btn btn-play lib-play";
+    play.textContent = "Play";
+    play.setAttribute("aria-label", `Reproducir ${item.name}`);
+    play.onclick = (event) => {
+      event.stopPropagation();
+      playSequence(item.name);
+    };
+    row.append(open, play);
+    els.libraryList.appendChild(row);
+  });
+}
+
+async function refreshLibrary() {
+  try {
+    if (isCoupled()) {
+      const response = await authorizedFetch("/sequence/files");
+      if (!response.ok) throw new Error(await readError(response) || "No se pudo listar");
+      const payload = await response.json();
+      libraryItems = payload.data || [];
+    } else {
+      const response = await fetch("/local/sequences");
+      if (!response.ok) throw new Error("No se pudo listar el disco");
+      const payload = await response.json();
+      libraryItems = payload.data || [];
+    }
+    renderLibrary();
+  } catch (error) {
+    libraryItems = [];
+    renderLibrary();
+    setStatus(error.message || "No se pudo listar", true);
+  }
+}
+
+async function fetchSequence(name) {
+  if (isCoupled()) {
+    const response = await authorizedFetch(`/sequence/file?name=${encodeURIComponent(name)}`);
+    if (!response.ok) throw new Error(await readError(response) || "No se pudo abrir");
+    return response.json();
+  }
+  const response = await fetch(localSequenceUrl(name));
+  if (!response.ok) throw new Error(await readError(response) || "No se pudo abrir");
+  return response.json();
+}
+
+async function openSequence(name) {
+  try {
+    parseLoadedSequence(await fetchSequence(name));
+    selectedLibraryName = name;
+    renderLibrary();
+    setStatus(`Editando: ${name}`);
+  } catch (error) {
+    setStatus(error.message || "No se pudo abrir", true);
+  }
+}
+
+async function playSequence(name) {
+  await openSequence(name);
+  await playCurrent();
+}
+
+async function saveLocal(overwrite) {
+  const sequence = buildOrigin();
+  const response = await fetch("/local/sequences", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sequence, overwrite: Boolean(overwrite) }),
+  });
+  if (response.status === 409 && !overwrite) {
+    if (confirm("La secuencia ya existe. ¿Sobrescribir?")) {
+      return saveLocal(true);
+    }
+    return false;
+  }
+  if (!response.ok) {
+    throw new Error(await readError(response) || "No se pudo guardar");
+  }
+  return true;
+}
+
 async function saveCoupled(overwrite) {
   const sequence = buildOrigin();
   const response = await authorizedFetch("/sequence/file", {
@@ -258,14 +388,52 @@ async function saveCoupled(overwrite) {
     body: JSON.stringify({ sequence, overwrite: Boolean(overwrite) }),
   });
   if (!response.ok) {
-    const text = await response.text();
+    const text = await readError(response);
     if (!overwrite && /ya existe/i.test(text)) {
       if (confirm("La secuencia ya existe. ¿Sobrescribir?")) {
         return saveCoupled(true);
       }
-      return;
+      return false;
     }
     throw new Error("No se pudo guardar");
+  }
+  return true;
+}
+
+async function playCurrent() {
+  const sequence = buildOrigin();
+  if (!sequence.blocks.length) {
+    setStatus("Agrega al menos un bloque", true);
+    return;
+  }
+  if (playing) {
+    setStatus("Ya hay una secuencia en curso. Presiona Stop.", true);
+    return;
+  }
+  startPlayhead();
+  if (!isCoupled()) {
+    setStatus("Línea de tiempo en curso (suelto)");
+    return;
+  }
+  const playBlocks = sequence.blocks.map((item) => ({
+    arduino_id: sequence.arduino_id,
+    pca: item[0],
+    servo: item[1],
+    inicio: item[2],
+    dur: item[3],
+    pos: item[4],
+    vel: item[5],
+    nombre: item[6],
+  }));
+  try {
+    const response = await authorizedFetch("/sequence/play", {
+      method: "POST",
+      body: JSON.stringify({ blocks: playBlocks }),
+    });
+    if (!response.ok) throw new Error("No se pudo previsualizar");
+    setStatus("Previsualización en curso");
+  } catch (error) {
+    setStatus(error.message || "No se pudo previsualizar", true);
   }
 }
 
@@ -340,7 +508,9 @@ function parseLoadedSequence(payload) {
       nombre: item.nombre,
     };
   });
-  if (rawBlocks[0] && !Array.isArray(rawBlocks[0]) && rawBlocks[0].arduino_id != null) {
+  if (sequence.arduino_id != null) {
+    els.arduino.value = sequence.arduino_id;
+  } else if (rawBlocks[0] && !Array.isArray(rawBlocks[0]) && rawBlocks[0].arduino_id != null) {
     els.arduino.value = rawBlocks[0].arduino_id;
   }
   replaceBlocks(mapped);
@@ -466,58 +636,17 @@ document.getElementById("save").onclick = async () => {
     return;
   }
   try {
-    if (token && gatewayUrl) {
-      await saveCoupled(false);
-      setStatus("Secuencia guardada");
-      return;
-    }
-    const blob = new Blob([JSON.stringify(sequence, null, 2)], { type: "application/json" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `${sequence.name}.json`;
-    link.click();
-    setStatus("JSON descargado (suelto)");
+    const saved = isCoupled() ? await saveCoupled(false) : await saveLocal(false);
+    if (!saved) return;
+    selectedLibraryName = sequence.name;
+    await refreshLibrary();
+    setStatus(isCoupled() ? "Secuencia guardada en robótica" : "Secuencia guardada en disco");
   } catch (error) {
     setStatus(error.message || "No se pudo guardar", true);
   }
 };
 
-document.getElementById("play").onclick = async () => {
-  const sequence = buildOrigin();
-  if (!sequence.blocks.length) {
-    setStatus("Agrega al menos un bloque", true);
-    return;
-  }
-  if (playing) {
-    setStatus("Ya hay una secuencia en curso. Presiona Stop.", true);
-    return;
-  }
-  startPlayhead();
-  if (!token || !gatewayUrl) {
-    setStatus("Línea de tiempo en curso (suelto)");
-    return;
-  }
-  const playBlocks = sequence.blocks.map((item) => ({
-    arduino_id: sequence.arduino_id,
-    pca: item[0],
-    servo: item[1],
-    inicio: item[2],
-    dur: item[3],
-    pos: item[4],
-    vel: item[5],
-    nombre: item[6],
-  }));
-  try {
-    const response = await authorizedFetch("/sequence/play", {
-      method: "POST",
-      body: JSON.stringify({ blocks: playBlocks }),
-    });
-    if (!response.ok) throw new Error("No se pudo previsualizar");
-    setStatus("Previsualización en curso");
-  } catch (error) {
-    setStatus(error.message || "No se pudo previsualizar", true);
-  }
-};
+document.getElementById("play").onclick = () => playCurrent();
 
 document.getElementById("stop").onclick = async () => {
   stopPlayhead();
@@ -531,47 +660,7 @@ document.getElementById("stop").onclick = async () => {
   setStatus("Detenido");
 };
 
-document.getElementById("load").onclick = async () => {
-  if (!token || !gatewayUrl) {
-    setStatus("Suelto: no hay sesión para cargar", true);
-    return;
-  }
-  try {
-    const response = await authorizedFetch("/sequence/files");
-    if (!response.ok) throw new Error("No se pudo listar");
-    const payload = await response.json();
-    const files = payload.data || [];
-    els.loadList.innerHTML = "";
-    files.forEach((file) => {
-      const option = document.createElement("option");
-      option.value = file.name;
-      option.textContent = file.name;
-      els.loadList.appendChild(option);
-    });
-    if (!files.length) {
-      setStatus("No hay secuencias guardadas", true);
-      return;
-    }
-    els.loadDialog.showModal();
-  } catch (error) {
-    setStatus(error.message || "No se pudo listar", true);
-  }
-};
-
-document.getElementById("load-confirm").onclick = async (event) => {
-  event.preventDefault();
-  const name = els.loadList.value;
-  if (!name) return;
-  try {
-    const response = await authorizedFetch(`/sequence/file?name=${encodeURIComponent(name)}`);
-    if (!response.ok) throw new Error("No se pudo abrir");
-    parseLoadedSequence(await response.json());
-    els.loadDialog.close();
-    setStatus(`Cargada: ${name}`);
-  } catch (error) {
-    setStatus(error.message || "No se pudo abrir", true);
-  }
-};
+document.getElementById("load").onclick = () => refreshLibrary();
 
 els.stage.addEventListener("scroll", () => {
   els.lanes.scrollTop = els.stage.scrollTop;
@@ -579,4 +668,5 @@ els.stage.addEventListener("scroll", () => {
 
 drawRuler();
 render();
+refreshLibrary();
 setStatus("Listo");
