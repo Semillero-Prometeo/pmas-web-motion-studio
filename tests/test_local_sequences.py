@@ -5,8 +5,10 @@ from src.app import app
 ORIGIN = {
     "name": "saludo",
     "description": "Saludo con el brazo derecho",
+    "category": "brazo_derecho",
     "arduino_id": 0,
     "blocks": [[0, 0, 0.0, 2, 500, 5, "P0_S0"]],
+    "blocks_neutro": [[0, 0, 0.0, 2, 500, 5, "P0_S0"]],
 }
 
 
@@ -78,6 +80,24 @@ def test_rejects_path_escape(tmp_path):
         "/local/sequences", json={"sequence": evil, "overwrite": False}
     )
     assert response.status_code == 400
+
+
+def test_save_rejects_missing_category(tmp_path):
+    client = client_with_store(tmp_path)
+    raw = dict(ORIGIN)
+    raw.pop("category")
+    response = client.post("/local/sequences", json={"sequence": raw, "overwrite": False})
+    assert response.status_code == 400
+    assert "categoría" in response.json()["detail"].lower() or "categoria" in response.json()["detail"].lower()
+
+
+def test_save_roundtrip_keeps_neutro(tmp_path):
+    client = client_with_store(tmp_path)
+    saved = client.post("/local/sequences", json={"sequence": ORIGIN, "overwrite": False})
+    assert saved.status_code == 200
+    assert saved.json()["category"] == "brazo_derecho"
+    assert saved.json()["blocks_neutro"][0] == [0, 0, 0.0, 2, 500, 5, "P0_S0"]
+    assert "id" not in saved.json()
 
 
 def test_index_has_library_panel():

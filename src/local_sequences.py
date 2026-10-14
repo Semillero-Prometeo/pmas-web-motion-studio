@@ -5,6 +5,8 @@ import os
 from pathlib import Path
 from typing import Any
 
+from src.neutro import CATEGORIES
+
 
 def default_data_dir() -> Path:
     env = os.getenv("MOTION_STUDIO_DATA_DIR")
@@ -73,11 +75,28 @@ class LocalSequenceStore:
             str(payload.get("description") or "").replace("\n", " ").strip()[:280]
         )
         arduino_id = int(payload.get("arduino_id") or 0)
-        blocks = payload.get("blocks")
-        if not isinstance(blocks, list) or not blocks:
+        category = payload.get("category")
+        if category not in CATEGORIES:
+            raise ValueError("Categoría inválida")
+        tuples = self._tuples(payload.get("blocks"))
+        try:
+            neutro = self._tuples(payload.get("blocks_neutro"))
+        except ValueError as exc:
+            raise ValueError("Falta la pista neutra") from exc
+        return {
+            "name": name,
+            "description": description,
+            "category": category,
+            "arduino_id": arduino_id,
+            "blocks": tuples,
+            "blocks_neutro": neutro,
+        }
+
+    def _tuples(self, raw: object) -> list[list[Any]]:
+        if not isinstance(raw, list) or not raw:
             raise ValueError("Define nombre y bloques")
         tuples: list[list[Any]] = []
-        for item in blocks:
+        for item in raw:
             if isinstance(item, list) and len(item) == 7:
                 tuples.append(
                     [
@@ -105,12 +124,7 @@ class LocalSequenceStore:
                 )
                 continue
             raise ValueError("Formato de secuencia inválido")
-        return {
-            "name": name,
-            "description": description,
-            "arduino_id": arduino_id,
-            "blocks": tuples,
-        }
+        return tuples
 
     def _resolve(self, name: str) -> Path:
         normalized = name.replace("\\", "/").strip("/")
