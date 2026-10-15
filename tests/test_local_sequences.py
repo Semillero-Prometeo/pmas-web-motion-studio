@@ -104,3 +104,21 @@ def test_index_has_library_panel():
     text = TestClient(app).get("/").text
     assert 'id="library"' in text
     assert "Secuencias" in text
+
+
+def test_save_rejects_short_description(tmp_path):
+    client = client_with_store(tmp_path)
+    raw = dict(ORIGIN)
+    raw["description"] = "123456789"
+    response = client.post("/local/sequences", json={"sequence": raw, "overwrite": False})
+    assert response.status_code == 400
+    assert "descripci" in response.json()["detail"].lower()
+
+
+def test_save_accepts_ten_char_description(tmp_path):
+    client = client_with_store(tmp_path)
+    raw = dict(ORIGIN)
+    raw["description"] = "1234567890"
+    response = client.post("/local/sequences", json={"sequence": raw, "overwrite": False})
+    assert response.status_code == 200
+    assert response.json()["description"] == "1234567890"

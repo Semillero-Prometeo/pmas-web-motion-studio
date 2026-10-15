@@ -74,6 +74,8 @@ class LocalSequenceStore:
         description = (
             str(payload.get("description") or "").replace("\n", " ").strip()[:280]
         )
+        if len(description) < 10:
+            raise ValueError("Descripción inválida")
         arduino_id = int(payload.get("arduino_id") or 0)
         category = payload.get("category")
         if category not in CATEGORIES:
