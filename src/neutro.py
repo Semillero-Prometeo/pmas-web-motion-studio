@@ -17,26 +17,32 @@ def generate_neutro(
 ) -> list[list[Any]]:
     if existing and not replace:
         raise ValueError("La pista neutra ya existe")
-    seeds: dict[tuple[int, int], list[Any]] = {}
-    order: list[tuple[int, int]] = []
-    for item in blocks:
+    if not blocks:
+        return []
+    ordered = sorted(enumerate(blocks), key=lambda pair: (float(pair[1][2]), pair[0]))
+    prev: dict[tuple[int, int], int] = {}
+    undos: list[tuple[int, list[Any]]] = []
+    for index, item in ordered:
         pca, servo = int(item[0]), int(item[1])
         key = (pca, servo)
-        if key not in seeds:
-            seeds[key] = item
-            order.append(key)
-            continue
-        if float(item[2]) < float(seeds[key][2]):
-            seeds[key] = item
+        inicio = float(item[2])
+        dur = float(item[3])
+        pos = int(item[4])
+        vel = int(item[5])
+        nombre = str(item[6])
+        undos.append(
+            (index, [pca, servo, inicio, dur, prev.get(key, 0), vel, nombre])
+        )
+        prev[key] = pos
+    t_end = max(float(item[2]) + float(item[3]) for item in blocks)
+    out: list[tuple[float, int, list[Any]]] = []
+    for index, row in undos:
+        inicio = float(row[2])
+        dur = float(row[3])
+        row[2] = t_end - (inicio + dur)
+        out.append((float(row[2]), -index, row))
+    out.sort(key=lambda item: (item[0], item[1]))
     return [
-        [
-            pca,
-            servo,
-            0,
-            2,
-            int(seeds[(pca, servo)][4]),
-            int(seeds[(pca, servo)][5]),
-            str(seeds[(pca, servo)][6]),
-        ]
-        for pca, servo in order
+        [row[0], row[1], row[2], row[3], row[4], row[5], row[6]]
+        for _, _, row in out
     ]
