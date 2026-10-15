@@ -280,21 +280,37 @@ function setActiveTrack(next) {
 }
 
 function generateNeutroFrom(tuples) {
-  const seeds = new Map();
-  const order = [];
-  for (const item of tuples) {
-    const key = `${item[0]}:${item[1]}`;
-    if (!seeds.has(key)) {
-      seeds.set(key, item);
-      order.push(key);
-      continue;
-    }
-    if (Number(item[2]) < Number(seeds.get(key)[2])) seeds.set(key, item);
-  }
-  return order.map((key) => {
-    const item = seeds.get(key);
-    return [item[0], item[1], 0, 2, item[4], item[5], item[6]];
+  if (!tuples.length) return [];
+  const ordered = tuples.map((item, index) => ({ item, index }));
+  ordered.sort((a, b) => {
+    const start = Number(a.item[2]) - Number(b.item[2]);
+    return start !== 0 ? start : a.index - b.index;
   });
+  const prev = new Map();
+  const undos = [];
+  for (const { item, index } of ordered) {
+    const key = `${item[0]}:${item[1]}`;
+    const inicio = Number(item[2]);
+    const dur = Number(item[3]);
+    undos.push({
+      index,
+      row: [item[0], item[1], inicio, dur, prev.has(key) ? prev.get(key) : 0, item[5], item[6]],
+    });
+    prev.set(key, item[4]);
+  }
+  const tEnd = Math.max(...tuples.map((item) => Number(item[2]) + Number(item[3])));
+  return undos
+    .map(({ index, row }) => {
+      const inicio = Number(row[2]);
+      const dur = Number(row[3]);
+      row[2] = tEnd - (inicio + dur);
+      return { index, row };
+    })
+    .sort((a, b) => {
+      const start = Number(a.row[2]) - Number(b.row[2]);
+      return start !== 0 ? start : b.index - a.index;
+    })
+    .map(({ row }) => row);
 }
 
 function generateNeutro() {
@@ -318,6 +334,55 @@ function generateNeutro() {
   if (activeTrack === "neutro") blocks = neutroBlocks;
   render();
   setStatus("Pista neutra generada");
+}
+
+function setSaveError(message) {
+  const node = document.getElementById("save-error");
+  if (!message) {
+    node.hidden = true;
+    node.textContent = "";
+    return;
+  }
+  node.hidden = false;
+  node.textContent = message;
+}
+
+function openSaveDialog() {
+  setSaveError("");
+  document.getElementById("save-dialog").showModal();
+}
+
+async function confirmSave(event) {
+  event.preventDefault();
+  const sequence = buildOrigin();
+  const description = sequence.description.trim();
+  if (!sequence.name) {
+    setSaveError("Escribe un nombre.");
+    return;
+  }
+  if (description.length < 10) {
+    setSaveError("La descripción debe tener al menos 10 caracteres.");
+    return;
+  }
+  if (!sequence.category) {
+    setSaveError("Elige una categoría.");
+    return;
+  }
+  if (!sequence.blocks.length || !sequence.blocks_neutro.length) {
+    setSaveError("Categoría, gesto y neutro son obligatorios");
+    return;
+  }
+  try {
+    const saved = isCoupled() ? await saveCoupled(false) : await saveLocal(false);
+    if (!saved) return;
+    selectedLibraryName = sequence.name;
+    document.getElementById("save-dialog").close();
+    await refreshLibrary();
+    setStatus(isCoupled() ? "Secuencia guardada en robótica" : "Secuencia guardada en disco");
+  } catch (error) {
+    setSaveError(error.message || "No se pudo guardar");
+    setStatus(error.message || "No se pudo guardar", true);
+  }
 }
 
 function buildOrigin() {
@@ -761,22 +826,14 @@ document.getElementById("track-gesto").onclick = () => setActiveTrack("normal");
 document.getElementById("track-neutro").onclick = () => setActiveTrack("neutro");
 document.getElementById("generate-neutro").onclick = () => generateNeutro();
 
-document.getElementById("save").onclick = async () => {
-  const sequence = buildOrigin();
-  if (!sequence.name || !sequence.category || !sequence.blocks.length || !sequence.blocks_neutro.length) {
-    setStatus("Categoría, gesto y neutro son obligatorios", true);
-    return;
-  }
-  try {
-    const saved = isCoupled() ? await saveCoupled(false) : await saveLocal(false);
-    if (!saved) return;
-    selectedLibraryName = sequence.name;
-    await refreshLibrary();
-    setStatus(isCoupled() ? "Secuencia guardada en robótica" : "Secuencia guardada en disco");
-  } catch (error) {
-    setStatus(error.message || "No se pudo guardar", true);
-  }
+document.getElementById("save").onclick = () => openSaveDialog();
+document.getElementById("save-form").addEventListener("submit", (event) => {
+  void confirmSave(event);
+});
+document.getElementById("save-cancel").onclick = () => {
+  document.getElementById("save-dialog").close();
 };
+document.getElementById("save-dialog").addEventListener("cancel", () => setSaveError(""));
 
 document.getElementById("play").onclick = () => playCurrent();
 
