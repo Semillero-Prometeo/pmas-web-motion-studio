@@ -4,13 +4,16 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>R-ONE Motion Studio</title>
-    <link rel="stylesheet" href="/static/editor.css?v=neutro" />
+    <link rel="stylesheet" href="/static/editor.css?v=identity" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
   </head>
   <body>
     <!--
       THESIS: Creating a sequence is placing colored bars on time, not filling a spreadsheet; this refuses the form-table editor.
-      OWN-WORLD: Host industrial night (#000f1d, cyan #38bdf8, emerald #10b981); dense toolbar; timeline is the canvas.
-      STORY: Name the gesture, drop servos on the ruler, drag when they fire, play to watch the playhead.
+      OWN-WORLD: Navy chrome #0B2540, cool paper #eef2f6, cyan action, emerald Neutro; Inter and Space Grotesk; dense toolbar; timeline is the canvas.
+      STORY: Drop servos on the ruler, play the playhead, save name description and category in a dialog.
       FIRST VIEWPORT: One compact chrome row, then the timeline owns the rest of the iframe.
       FORM: Operate extension of pmas-web-main + original R-ONE timeline grammar.
       FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
@@ -21,40 +24,18 @@
           <strong>Motion Studio</strong>
           <span id="mode" class="mode">Suelto</span>
         </div>
-        <label class="field">
-          <span>Nombre</span>
-          <input id="name" maxlength="80" placeholder="saludo" />
-        </label>
-        <label class="field field-wide">
-          <span>Descripción</span>
-          <input id="description" maxlength="280" placeholder="Para el prompt del turno" />
-        </label>
-        <label class="field field-narrow">
-          <span>Arduino</span>
-          <input id="arduino_id" type="number" min="0" value="0" />
-        </label>
-        <label class="field">
-          <span>Categoría</span>
-          <select id="category">
-            <option value="">Elegir</option>
-            <option value="cara">Cara</option>
-            <option value="cuello">Cuello</option>
-            <option value="brazo_derecho">Brazo derecho</option>
-            <option value="brazo_izquierdo">Brazo izquierdo</option>
-            <option value="torso">Torso</option>
-            <option value="cadera">Cadera</option>
-          </select>
-        </label>
       </header>
       <div class="actions">
-        <button type="button" id="add" class="btn">Agregar</button>
-        <button type="button" id="play" class="btn btn-play">Play</button>
-        <button type="button" id="stop" class="btn btn-stop">Stop</button>
-        <button type="button" id="track-gesto" class="btn active">Gesto</button>
-        <button type="button" id="track-neutro" class="btn">Neutro</button>
-        <button type="button" id="generate-neutro" class="btn">Generar neutro</button>
-        <button type="button" id="save" class="btn btn-save">Guardar</button>
-          <button type="button" id="load" class="btn">Actualizar</button>
+        <button type="button" id="play" class="btn btn-play"><span class="material-symbols-outlined" aria-hidden="true">play_arrow</span> Play</button>
+        <button type="button" id="stop" class="btn btn-stop"><span class="material-symbols-outlined" aria-hidden="true">stop</span> Stop</button>
+        <button type="button" id="add" class="btn"><span class="material-symbols-outlined" aria-hidden="true">add</span> Agregar</button>
+        <span class="track-switch" role="group" aria-label="Pista">
+          <button type="button" id="track-gesto" class="btn active"><span class="material-symbols-outlined" aria-hidden="true">animation</span> Gesto</button>
+          <button type="button" id="track-neutro" class="btn"><span class="material-symbols-outlined" aria-hidden="true">restart_alt</span> Neutro</button>
+        </span>
+        <button type="button" id="generate-neutro" class="btn btn-neutro"><span class="material-symbols-outlined" aria-hidden="true">swap_vert</span> Generar neutro</button>
+        <button type="button" id="save" class="btn btn-save"><span class="material-symbols-outlined" aria-hidden="true">save</span> Guardar</button>
+        <button type="button" id="load" class="btn"><span class="material-symbols-outlined" aria-hidden="true">refresh</span> Actualizar</button>
       </div>
 
       <p id="status" class="status" role="status">Listo</p>
@@ -87,8 +68,43 @@
         <label>Duración (s) <input id="edit-dur" type="number" min="0.1" step="0.1" /></label>
         <button type="button" id="delete-block" class="btn btn-stop">Eliminar</button>
       </aside>
+
+      <dialog id="save-dialog" class="save-dialog">
+        <form id="save-form">
+          <h2>Guardar secuencia</h2>
+          <label class="field">
+            <span>Nombre</span>
+            <input id="name" name="name" maxlength="80" required placeholder="saludo" />
+          </label>
+          <label class="field">
+            <span>Descripción</span>
+            <input id="description" name="description" minlength="10" maxlength="280" required placeholder="Para el prompt del turno" />
+          </label>
+          <p id="save-error" class="save-error" hidden></p>
+          <label class="field">
+            <span>Categoría</span>
+            <select id="category" name="category" required>
+              <option value="">Elegir</option>
+              <option value="cara">Cara</option>
+              <option value="cuello">Cuello</option>
+              <option value="brazo_derecho">Brazo derecho</option>
+              <option value="brazo_izquierdo">Brazo izquierdo</option>
+              <option value="torso">Torso</option>
+              <option value="cadera">Cadera</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Arduino</span>
+            <input id="arduino_id" name="arduino_id" type="number" min="0" value="0" required />
+          </label>
+          <div class="save-actions">
+            <button type="button" id="save-cancel" class="btn">Cancelar</button>
+            <button type="submit" id="save-confirm" class="btn btn-save">Guardar</button>
+          </div>
+        </form>
+      </dialog>
     </div>
 
-    <script src="/static/editor.js?v=neutro"></script>
+    <script src="/static/editor.js?v=identity"></script>
   </body>
 </html>
