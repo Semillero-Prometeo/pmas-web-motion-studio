@@ -3,8 +3,10 @@ const POST_AUTH_REQUEST = "prometeo-auth-request";
 const PX = 100;
 const ROW_H = 44;
 const SECONDS = 41;
-const COLORS = ["#7aa0ff", "#5fd08a", "#ffb45c", "#c98cff", "#ff7a7a"];
-const COLORS_OVERLAP = ["#3d5bb5", "#2d8a52", "#c47a28", "#7a3fb0", "#c43a3a"];
+const COLORS = ["#38bdf8", "#7dd3fc", "#0ea5e9", "#67e8f9", "#22d3ee"];
+const COLORS_OVERLAP = ["#0284c7", "#0369a1", "#155e75", "#0e7490", "#164e63"];
+const COLORS_NEUTRO = ["#059669", "#047857", "#065f46", "#34d399", "#6ee7b7"];
+const COLORS_NEUTRO_OVERLAP = ["#047857", "#065f46", "#064e3b", "#059669", "#047857"];
 
 let token = null;
 let gatewayUrl = null;
@@ -188,9 +190,11 @@ function render() {
         el.tabIndex = 0;
         el.style.left = `${block.inicio * PX}px`;
         el.style.width = `${Math.max(block.dur * PX, 24)}px`;
+        const palette = activeTrack === "neutro" ? COLORS_NEUTRO : COLORS;
+        const overlapPalette = activeTrack === "neutro" ? COLORS_NEUTRO_OVERLAP : COLORS_OVERLAP;
         el.style.background = overlapping
-          ? COLORS_OVERLAP[(row + order) % COLORS.length]
-          : COLORS[(row + order) % COLORS.length];
+          ? overlapPalette[(row + order) % overlapPalette.length]
+          : palette[(row + order) % palette.length];
         el.innerHTML = `<span>${block.nombre}  Pos:${block.pos} V:${block.vel}</span><button type="button" class="kill" aria-label="Eliminar">×</button><span class="resize"></span>`;
         rowEl.appendChild(el);
       });
