@@ -23,6 +23,7 @@
         <div class="identity">
           <strong>Motion Studio</strong>
           <span id="mode" class="mode">Suelto</span>
+          <span id="arduino-chip" class="mode">Sin Arduino</span>
         </div>
       </header>
       <div class="actions">
@@ -34,6 +35,7 @@
           <button type="button" id="track-neutro" class="btn"><span class="material-symbols-outlined" aria-hidden="true">restart_alt</span> Neutro</button>
         </span>
         <button type="button" id="generate-neutro" class="btn btn-neutro"><span class="material-symbols-outlined" aria-hidden="true">swap_vert</span> Generar neutro</button>
+        <p id="neutro-warning" class="status" role="note"></p>
         <button type="button" id="save" class="btn btn-save"><span class="material-symbols-outlined" aria-hidden="true">save</span> Guardar</button>
         <button type="button" id="load" class="btn"><span class="material-symbols-outlined" aria-hidden="true">refresh</span> Actualizar</button>
       </div>
@@ -105,6 +107,7 @@
       </dialog>
     </div>
 
+    <script src="/static/library-view.js?v=identity"></script>
     <script src="/static/editor.js?v=identity"></script>
   </body>
 </html>

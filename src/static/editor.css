@@ -468,9 +468,17 @@ select:focus {
   color: var(--muted);
 }
 
+.lib-group {
+  padding: 0.45rem 0.7rem 0.15rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
 .lib-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.25rem;
   align-items: center;
   padding: 0.2rem 0.45rem;
@@ -499,9 +507,10 @@ select:focus {
 .lib-open strong {
   font-size: 0.875rem;
   font-weight: 650;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: unset;
+  white-space: normal;
+  word-break: break-word;
   max-width: 100%;
 }
 

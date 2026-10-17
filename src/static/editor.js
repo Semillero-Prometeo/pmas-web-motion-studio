@@ -32,6 +32,7 @@ const els = {
   arduino: document.getElementById("arduino_id"),
   category: document.getElementById("category"),
   mode: document.getElementById("mode"),
+  arduinoChip: document.getElementById("arduino-chip"),
   status: document.getElementById("status"),
   lanes: document.getElementById("lanes"),
   tracks: document.getElementById("tracks"),
@@ -195,7 +196,7 @@ function render() {
         el.style.background = overlapping
           ? overlapPalette[(row + order) % overlapPalette.length]
           : palette[(row + order) % palette.length];
-        el.innerHTML = `<span>${block.nombre}  Pos:${block.pos} V:${block.vel}</span><button type="button" class="kill" aria-label="Eliminar">×</button><span class="resize"></span>`;
+        el.innerHTML = `<span>${StudioLibrary.blockCardText(block)}</span><button type="button" class="kill" aria-label="Eliminar">×</button><span class="resize"></span>`;
         rowEl.appendChild(el);
       });
     } else if (row === 0) {
@@ -449,33 +450,30 @@ function renderLibrary() {
     els.libraryList.appendChild(empty);
     return;
   }
-  libraryItems.forEach((item) => {
-    const row = document.createElement("li");
-    row.className = "lib-item";
-    const open = document.createElement("button");
-    open.type = "button";
-    open.className = "lib-open" + (item.name === selectedLibraryName ? " active" : "");
-    open.dataset.name = item.name;
-    const title = document.createElement("strong");
-    title.textContent = item.name;
-    const meta = document.createElement("span");
-    const bits = [];
-    if (item.id != null) bits.push(`#${item.id}`);
-    if (item.description) bits.push(item.description);
-    meta.textContent = bits.join(" · ") || "Sin descripción";
-    open.append(title, meta);
-    open.onclick = () => openSequence(item.name);
-    const play = document.createElement("button");
-    play.type = "button";
-    play.className = "btn btn-play lib-play";
-    play.textContent = "Play";
-    play.setAttribute("aria-label", `Reproducir ${item.name}`);
-    play.onclick = (event) => {
-      event.stopPropagation();
-      playSequence(item.name);
-    };
-    row.append(open, play);
-    els.libraryList.appendChild(row);
+  StudioLibrary.groupLibraryItems(libraryItems).forEach((group) => {
+    const heading = document.createElement("li");
+    heading.className = "lib-group";
+    heading.textContent = group.label;
+    els.libraryList.appendChild(heading);
+    group.items.forEach((item) => {
+      const row = document.createElement("li");
+      row.className = "lib-item";
+      const open = document.createElement("button");
+      open.type = "button";
+      open.className = "lib-open" + (item.name === selectedLibraryName ? " active" : "");
+      open.dataset.name = item.name;
+      const title = document.createElement("strong");
+      title.textContent = item.name;
+      const meta = document.createElement("span");
+      const bits = [];
+      if (item.id != null) bits.push(`#${item.id}`);
+      if (item.description) bits.push(item.description);
+      meta.textContent = bits.join(" · ") || "Sin descripción";
+      open.append(title, meta);
+      open.onclick = () => openSequence(item.name);
+      row.append(open);
+      els.libraryList.appendChild(row);
+    });
   });
 }
 
@@ -859,7 +857,31 @@ els.stage.addEventListener("scroll", () => {
   els.lanes.scrollTop = els.stage.scrollTop;
 });
 
+const neutroWarning = document.getElementById("neutro-warning");
+if (neutroWarning) neutroWarning.textContent = StudioLibrary.NEUTRO_REVIEW_WARNING;
+
+async function pollArduinoChip() {
+  const chip = els.arduinoChip;
+  if (!chip) return;
+  if (!token || !gatewayUrl) {
+    const status = StudioLibrary.formatArduinoStatus([]);
+    chip.textContent = status.label;
+    setTimeout(pollArduinoChip, 5000);
+    return;
+  }
+  try {
+    const response = await authorizedFetch("/sequence/arduinos");
+    const list = response.ok ? await response.json() : [];
+    const status = StudioLibrary.formatArduinoStatus(Array.isArray(list) ? list : []);
+    chip.textContent = status.label;
+  } catch {
+    chip.textContent = StudioLibrary.formatArduinoStatus([]).label;
+  }
+  setTimeout(pollArduinoChip, 5000);
+}
+
 drawRuler();
 render();
 refreshLibrary();
+void pollArduinoChip();
 setStatus("Listo");
