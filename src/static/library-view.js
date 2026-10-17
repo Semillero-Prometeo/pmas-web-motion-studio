@@ -24,7 +24,10 @@
       `pos:${block.pos}`,
       `v:${block.vel}`,
     ];
-    if (Number(block.arduino_id) !== 0) parts.push(`ard:${block.arduino_id}`);
+    const arduinoId = Number(block.arduino_id);
+    if (Number.isFinite(arduinoId) && arduinoId !== 0) {
+      parts.push(`ard:${arduinoId}`);
+    }
     return parts.join(" ");
   }
 

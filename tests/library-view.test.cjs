@@ -47,6 +47,20 @@ test("card omits arduino when 0", () => {
   assert.ok(!text.includes("ard:"));
 });
 
+test("card omits arduino when missing", () => {
+  const text = blockCardText({
+    nombre: "P0_S1",
+    pca: 0,
+    servo: 0,
+    inicio: 0,
+    dur: 2,
+    pos: 500,
+    vel: 5,
+  });
+  assert.ok(!text.includes("ard:"));
+  assert.ok(!text.includes("undefined"));
+});
+
 test("warning copy is locked", () => {
   assert.equal(
     NEUTRO_REVIEW_WARNING,
